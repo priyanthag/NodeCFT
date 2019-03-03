@@ -5,7 +5,7 @@ You don't need to learn any tool specific commands to work with NodeCF like othe
 
 All you need to know is NodeJS and CFT.
 
-More information on how to use NodeCFT, check my boilerpage project on https://github.com/priyanthag/NodeCFT-boilerplate
+More information on how to use NodeCFT, check my boilerplate project on https://github.com/priyanthag/NodeCFT-boilerplate
 
 ## Limitations
   -  Stack Deletion is not supporting yet
