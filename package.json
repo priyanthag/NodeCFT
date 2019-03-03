@@ -1,6 +1,6 @@
 {
   "name": "nodecft",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "keywords": [
     "CFT with NodeJS",
     "NodeJS CTF",
@@ -9,6 +9,10 @@
     "infrastructure as code software tool"
   ],
   "description": "NodeCFT - Simple infrastructure as code software tool on NodeJS",
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/priyanthag/NodeCFT.git"
+  },
   "main": "bin/nodecft.js",
   "scripts": {
     "lint": "standard",
