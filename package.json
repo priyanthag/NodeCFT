@@ -1,6 +1,6 @@
 {
   "name": "nodecft",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "keywords": [
     "CFT with NodeJS",
     "NodeJS CTF",
@@ -8,7 +8,12 @@
     "AWS",
     "infrastructure as code software tool"
   ],
+  "author": "Priyantha Gunawardena <pgdesigning@gmail.com>",
+  "license": "MIT",
   "description": "NodeCFT - Simple infrastructure as code software tool on NodeJS",
+  "homepage": "https://github.com/priyanthag/NodeCFT#readme",
+  "url" : "https://github.com/priyanthag/NodeCFT/issues",
+  "email" : "pgdesigning@gmail.com",
   "repository": {
     "type" : "git",
     "url" : "https://github.com/priyanthag/NodeCFT.git"
@@ -24,8 +29,6 @@
     "lint:fix",
     "check"
   ],
-  "author": "Priyantha Gunawardena <pgdesigning@gmail.com>",
-  "license": "MIT",
   "dependencies": {
     "child_process": "^1.0.2",
     "util": "^0.11.1",
