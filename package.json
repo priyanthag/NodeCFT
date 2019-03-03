@@ -1,12 +1,14 @@
 {
   "name": "nodecft",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "keywords": [
     "CFT with NodeJS",
+    "NodeJS CTF",
+    "CTF",
     "AWS",
     "infrastructure as code software tool"
   ],
-  "description": "NodeCFT",
+  "description": "NodeCFT - simple ",
   "main": "bin/nodecft.js",
   "scripts": {
     "lint": "standard",
