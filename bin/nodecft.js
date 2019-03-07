@@ -225,7 +225,7 @@ var createStack = function () {
           case 45:
             cmdWaitOut = _context2.sent;
 
-            _logger2.default.info(cmdWaitOut);
+            _logger2.default.info(JSON.stringify(cmdWaitOut, undefined, 2));
             _logger2.default.info('\n ========= \n | => CFT execution is completed\n -----------\n');
 
           case 48:
