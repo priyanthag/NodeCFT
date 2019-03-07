@@ -145,7 +145,7 @@ const createStack = async ({
   if (!noUpdatesTobePerformed) {
     logger.info(`\n ========= \n | => Waitign for CFT execution to complete, ${cmdWait}-----------\n`)
     const cmdWaitOut = await exec(cmdWait)
-    logger.info(cmdWaitOut)
+    logger.info(JSON.stringify(cmdWaitOut, undefined, 2))
     logger.info(`\n ========= \n | => CFT execution is completed\n -----------\n`)
   }
 
