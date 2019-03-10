@@ -1,0 +1,12 @@
+# IDE & OS specific
+.DS_Store
+.idea
+
+# Dependencies
+node_modules
+logs
+
+# Sources, tests and builder files
+src
+.babelrc
+.gitignore
