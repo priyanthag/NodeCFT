@@ -11,7 +11,6 @@
         "**/bin": true,
     },
     "files.autoSave": "off",
-    "jestrunner.configPath": "jest.config.js",
     "runCurrentTest.run": "TZ=Etc/UTC npm run test -- ${relativeTestPath} --runTestsByPath --testNamePattern \"^${fullTestName}$\"",
     "runCurrentTest.runAndUpdateSnapshots": "TZ=Etc/UTC npm run test -- -u ${relativeTestPath} --runTestsByPath --testNamePattern \"^${fullTestName}$\""
 }
