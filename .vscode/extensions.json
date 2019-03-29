@@ -2,6 +2,7 @@
 	"recommendations": [
     "redhat.vscode-yaml",
     "asvetliakov.run-current-test",
-    "streetsidesoftware.code-spell-checker"
+    "streetsidesoftware.code-spell-checker",
+    "andys8.jest-snippets"
   ]
 }

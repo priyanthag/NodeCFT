@@ -1,11 +1,13 @@
+import AWS from 'aws-sdk'
 import dotenv from 'dotenv'
 import _ from 'lodash'
+import fs from 'fs'
+
 import logger from './utils/logger.util'
-import { promisify } from 'util'
-import childProcess from 'child_process'
+import { createHash, isNullOrEmptyOrUndefined } from './utils/misc.util'
+import { _getProcessStackOutput } from './nodecft.sub'
 
-const exec = promisify(childProcess.exec)
-
+let _originalStackResponse = null
 let _stackOutput = null
 
 const constants = {
@@ -18,37 +20,73 @@ const _region = 'us-east-1'
 
 const _getParams = (params) => {
   const r = _.reduce(params, (result, value, key) => {
-    result += `ParameterKey=${key},ParameterValue="${value}"  `
+    result.push({
+      ParameterKey: key,
+      ParameterValue: value
+    })
     return result
-  }, ' ')
+  }, [])
   return r
 }
 
-const _getExecOutputJson = (data) => {
-  return JSON.parse(data.stdout.replace(/\n|\r/g, ''))
-}
-
-const _processStackOutput = (data) => {
-  _stackOutput = _getExecOutputJson(data)
+const _processStackResponse = (data) => {
+  _originalStackResponse = data
+  _stackOutput = _getProcessStackOutput(data)
 }
 
 /**
  * Get the current user who has logged into the AWS account via CLI
 */
 const _getCurrentUserProfile = async () => {
-  const cProfile = await exec(`aws opsworks --region ${_region} describe-my-user-profile`)
-  return _.get(_getExecOutputJson(cProfile), 'UserProfile')
+  var iam = new AWS.IAM()
+  const usr = await iam.getUser().promise()
+  return {
+    User: _.get(usr, 'User'),
+    IamUserArn: _.get(usr, ['User', 'Arn'])
+  }
 }
 
 const init = () => {
   dotenv.config()
 }
 
+const _prepareSdkParams = (iParams, isUpdate) => {
+  const rParams = {
+    StackName: iParams.stackName, /* required */
+    TemplateBody: fs.readFileSync(`${process.cwd()}/${iParams.stackPath}`, 'utf8')
+  }
+
+  if (iParams.capabilities) {
+    _.set(rParams, 'Capabilities', [
+      iParams.capabilities
+    ])
+  }
+
+  if (iParams.roleArn) {
+    _.set(rParams, 'RoleARN', [
+      iParams.roleArn
+    ])
+  }
+
+  if (iParams.params) {
+    _.set(rParams, 'Parameters', _getParams(iParams.params))
+  }
+
+  // only create stack must use these params
+  if (isUpdate === false) {
+    _.set(rParams, 'DisableRollback', true)
+    _.set(rParams, 'EnableTerminationProtection', false)
+  }
+  _.set(rParams, 'ClientRequestToken', createHash(rParams))
+
+  return rParams
+}
+
 /**
  * @returns All the stacked generated as the CFT execution
  */
 const getStacks = () => {
-  return _.get(_stackOutput, 'Stacks')
+  return _originalStackResponse
 }
 
 /**
@@ -56,8 +94,11 @@ const getStacks = () => {
  * @param {String} name // name of the CFT output parameter
  */
 const getOutput = (name) => {
-  const outputs = _.get(getStacks(), [0, 'Outputs'])
-  return _.get(_.filter(outputs, { OutputKey: name }), [0, 'OutputValue'])
+  if (isNullOrEmptyOrUndefined(name)) {
+    return _stackOutput
+  } else {
+    return _.get(_stackOutput, name)
+  }
 }
 
 /**
@@ -80,78 +121,81 @@ const createStack = async ({
   capabilities,
   roleArn
 }, isUpdateIfExists = false, isUpdate = false) => {
+  const sdkParams = _prepareSdkParams({
+    stackName,
+    stackPath,
+    params,
+    capabilities,
+    roleArn
+  }, isUpdate)
+
   let stackTypeMsg = 'Creating the stack'
-  let stackType = 'create'
-  let noUpdatesTobePerformed = false
+  let waitingFor = null
+
+  // populating CLI messages
   if (isUpdate) {
-    stackType = 'update'
     stackTypeMsg = 'Stack already exists, updating the stack'
   } else {
     const cProfile = await _getCurrentUserProfile()
-    logger.warn(`
-      Your current logged in profile is \n
-      \t |==> ${_.get(cProfile, 'IamUserArn')} \n
-      --------------------------------------------------
-    `)
+    logger.warn(`Your current logged in profile is [ ${_.get(cProfile, 'IamUserArn')} ] \n`)
   }
 
-  // --capabilities CAPABILITY_NAMED_IAM
-  let capb = capabilities ? `--capabilities ${capabilities}` : ''
-  let roln = roleArn ? `--role-arn ${roleArn}` : ''
+  AWS.config.update({ region: _region })
+  AWS.config.apiVersions = {
+    cloudformation: '2010-05-15'
+  }
+  var cloudformation = new AWS.CloudFormation()
 
-  const cmdCreate = `
-    aws cloudformation --region ${_region} ${stackType}-stack \
-      --stack-name ${stackName} \
-      --template-body file://${process.cwd()}/${stackPath} \
-      --parameters ${_getParams(params)} ${capb} ${roln}
-    `
-  const cmdWait = `
-    aws cloudformation --region ${_region} wait stack-${stackType}-complete --stack-name ${stackName}
-  `
-
-  const cmdDescribe = `
-  aws cloudformation --region ${_region} describe-stacks --stack-name ${stackName}
-`
   try {
-    logger.info(`\n ${stackTypeMsg} ${stackName} with Params \n ==== \n`)
-    logger.info(JSON.stringify(params, undefined, 2))
-    logger.info(cmdCreate)
-    const cmdCreateOut = await exec(cmdCreate)
-    logger.info(JSON.stringify(cmdCreateOut, undefined, 2))
-  } catch (e) {
-    _stackOutput = null
-
-    if (e.stderr.indexOf('(AlreadyExistsException)') > -1) {
-      // update the stack as its already existing
-      return createStack({
-        stackName,
-        stackPath,
-        params,
-        capabilities,
-        roleArn
-      }, false, true)
+    logger.info(`${stackTypeMsg} ${stackName} with following stack parameters \n ${JSON.stringify({
+      ...sdkParams,
+      TemplateBody: `Check the Yaml file at [${stackPath}]`
+    }, undefined, 2)}`)
+    if (isUpdate) {
+      // update
+      waitingFor = 'stackUpdateComplete'
+      await cloudformation.updateStack(sdkParams).promise()
     } else {
-      // if nothing to update continue the rest
-      if (e.stderr.indexOf('No updates are to be performed.') > -1) {
-        noUpdatesTobePerformed = true
-        logger.warn('\n ========= \n | => No updates are to be performed.\n -----------\n')
+      // create
+      waitingFor = 'stackCreateComplete'
+      await cloudformation.createStack(sdkParams).promise()
+    }
+
+    const stCompleteRes = await new Promise((resolve, reject) => {
+      cloudformation.waitFor(waitingFor, {
+        StackName: stackName
+      }, (err, data) => {
+        if (err) {
+          return reject(err)
+        }
+        return resolve(data)
+      })
+    })
+
+    _processStackResponse(stCompleteRes)
+  } catch (e) {
+    // if the AlreadyExistsException:, update the stack
+    if (e.code === 'AlreadyExistsException') {
+      if (!isUpdateIfExists) {
+        logger.warn(`Stack updating is denied by the user`)
+        const dStack = await cloudformation.describeStacks({
+          StackName: stackName
+        }).promise()
+        _processStackResponse(dStack)
       } else {
-        logger.error(e)
-        throw new Error(e)
+        return createStack({
+          stackName,
+          stackPath,
+          params,
+          capabilities,
+          roleArn
+        }, false, true)
       }
+    } else {
+      logger.error(e)
+      throw e
     }
   }
-  // wait till everything finishes
-  if (!noUpdatesTobePerformed) {
-    logger.info(`\n ========= \n | => Waitign for CFT execution to complete, ${cmdWait}-----------\n`)
-    const cmdWaitOut = await exec(cmdWait)
-    logger.info(JSON.stringify(cmdWaitOut, undefined, 2))
-    logger.info(`\n ========= \n | => CFT execution is completed\n -----------\n`)
-  }
-
-  // Process the initial stack created by the CFT execution
-  _processStackOutput(await exec(cmdDescribe))
-  return getStacks()
 }
 
 // /**
