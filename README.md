@@ -1,5 +1,5 @@
 # NodeCFT
-NodeCFT is a simple infrastructure as code software software tool that allows you to write your AWS infrastructure as a code using nodeJS and CFT. 
+NodeCFT is a simple infrastructure as code software tool that allows you to write your AWS infrastructure as a code using nodeJS and CFT. 
 
 You don't need to learn any tool specific commands to work with NodeCFT like other infrastructure as code software tools, Terraform or Pulumi.
 
